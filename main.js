@@ -1,5 +1,5 @@
 let WALLET_CONNECTED = "";
-let contractAddress = "0x0CD1967fF2752E6b8fB2447994C43bBd70e1159f";
+let contractAddress = "0x164bc025362b05704fC8bE312919c339E49293d2";
 let contractAbi = [
     {
       "inputs": [
@@ -109,6 +109,19 @@ let contractAbi = [
       "inputs": [
         {
           "internalType": "uint256",
+          "name": "_durationInMinutes",
+          "type": "uint256"
+        }
+      ],
+      "name": "resetVotingTimer",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
           "name": "_candidateIndex",
           "type": "uint256"
         }
@@ -174,6 +187,25 @@ const connectMetamask = async() => {
     element.innerHTML = "Metamask is connected " + WALLET_CONNECTED;
 }
 
+async function resetTimer() {
+    try {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+        const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+
+        const duration = prompt("Enter new duration in seconds:");
+        if (!duration) return;
+
+        const tx = await contract.resetVotingTimer(duration);
+        await tx.wait();
+
+        alert("Voting timer has been reset successfully!");
+    } catch (error) {
+        console.error("Error resetting timer:", error);
+        alert("Failed to reset timer.");
+    }
+}
+
 const addVote = async() => {
     if(WALLET_CONNECTED != 0) {
         var name = document.getElementById("vote");
@@ -213,33 +245,47 @@ const voteStatus = async() => {
     }
 }
 
-const getAllCandidates = async() => {
-    if(WALLET_CONNECTED != 0) {
-        var p3 = document.getElementById("p3");
+const getAllCandidates = async () => {
+    if (WALLET_CONNECTED != "") {
+        const p3 = document.getElementById("p3");
+        p3.innerHTML = "Please wait, fetching all candidates from the smart contract...";
+
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         const signer = provider.getSigner();
         const contractInstance = new ethers.Contract(contractAddress, contractAbi, signer);
-        p3.innerHTML = "Please wait, getting all the candidates from the voting smart contract";
-        var candidates = await contractInstance.getAllVotesOfCandiates();
-        console.log(candidates);
-        var table = document.getElementById("myTable");
 
-        for (let i = 0; i < candidates.length; i++) {
-            var row = table.insertRow();
-            var idCell = row.insertCell();
-            var descCell = row.insertCell();
-            var statusCell = row.insertCell();
+        try {
+            const candidates = await contractInstance.getAllVotesOfCandiates();
+            console.log("Candidates:", candidates);
 
-            idCell.innerHTML = i;
-            descCell.innerHTML = candidates[i].name;
-            statusCell.innerHTML = candidates[i].voteCount;
+            const table = document.getElementById("myTable");
+
+            // Clear previous rows except header
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+
+            // Populate table
+            console.log(candidates);
+            candidates.forEach((c, i) => {
+                const row = table.insertRow();
+                const idCell = row.insertCell();
+                const nameCell = row.insertCell();
+                const voteCell = row.insertCell();
+
+                idCell.innerHTML = i;
+                nameCell.innerHTML = c.name;
+                voteCell.innerHTML = c.voteCount.toString(); // Convert BigNumber to string
+            });
+
+            p3.innerHTML = "Candidates updated successfully ✅";
+        } catch (err) {
+            console.error("Error fetching candidates:", err);
+            p3.innerHTML = "❌ Failed to fetch candidates: " + err.message;
         }
-
-        p3.innerHTML = "The tasks are updated"
+    } else {
+        const p3 = document.getElementById("p3");
+        p3.innerHTML = "Please connect Metamask first";
     }
-    else {
-        var p3 = document.getElementById("p3");
-        p3.innerHTML = "Please connect metamask first";
-    }
-}
+};

@@ -33,22 +33,19 @@ app.get("/index.html", (req, res) => {
     res.sendFile(path.join(__dirname, "index.html"));
 })
 
-app.post("/vote", async (req, res) => {
+app.post("/addCandidate", async (req, res) => {
     var vote = req.body.vote;
     console.log(vote)
-    async function storeDataInBlockchain(vote) {
-        console.log("Adding the candidate in voting contract...");
+    console.log(req.body)
+    try {
         const tx = await contractInstance.addCandidate(vote);
-        await tx.wait();
+        const receipt = await tx.wait();
+        console.log("Transaction receipt:", receipt);
+        console.log("✅ Candidate added successfully!");
+    } catch (error) {
+        console.error("Error while adding candidate:", error);
     }
-    const bool = await contractInstance.getVotingStatus();
-    if (bool == true) {
-        await storeDataInBlockchain(vote);
-        res.send("The candidate has been registered in the smart contract");
-    }
-    else {
-        res.send("Voting is finished");
-    }
+
 });
 
 app.listen(port, function () {
